@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Problem Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .terminal-text { font-family: 'Courier New', Courier, monospace; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+        
+        #sidebar { transition: transform 0.3s ease-in-out; }
+        .sidebar-open { transform: translateX(0); }
+        .sidebar-closed { transform: translateX(-100%); }
+        @media (min-width: 1024px) { .sidebar-closed { transform: translateX(0); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen flex overflow-hidden">
+
+    <div id="login-screen" class="absolute inset-0 bg-gray-950 z-50 flex flex-col items-center justify-center">
+        <div class="bg-gray-900 p-8 rounded-xl border border-gray-700 shadow-2xl text-center max-w-sm w-full mx-4">
+            <h1 class="text-3xl font-bold text-blue-500 mb-2">Tracker Login</h1>
+            <p class="text-gray-500 text-xs mb-8 uppercase tracking-widest">Restricted Access</p>
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="text-xs text-gray-400 font-bold ml-1">EMAIL</label>
+                    <input type="email" id="email-input" class="w-full bg-gray-800 border border-gray-600 rounded p-3 text-white focus:outline-none focus:border-blue-500 transition">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 font-bold ml-1">PASSWORD</label>
+                    <input type="password" id="password-input" class="w-full bg-gray-800 border border-gray-600 rounded p-3 text-white focus:outline-none focus:border-blue-500 transition">
+                </div>
+                <button onclick="loginWithPassword()" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded hover:bg-blue-500 transition mt-4 shadow-lg shadow-blue-900/50">AUTHENTICATE</button>
+            </div>
+            <p id="login-error" class="text-red-400 text-xs mt-6 hidden bg-red-900/20 p-2 rounded border border-red-900"></p>
+        </div>
+    </div>
+
+    <div id="app-content" class="relative flex h-screen w-full hidden overflow-hidden">
+        
+        <div class="lg:hidden absolute top-0 left-0 w-full bg-gray-800 p-4 z-20 flex justify-between items-center border-b border-gray-700">
+            <h1 class="text-lg font-bold text-blue-400">Tracker v3.1</h1>
+            <button onclick="toggleSidebar()" class="text-white p-2 focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+        </div>
+
+        <aside id="sidebar" class="absolute lg:relative w-80 bg-gray-800 h-full border-r border-gray-700 flex flex-col z-30 sidebar-closed lg:translate-x-0">
+            <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold text-blue-400 tracking-tight">Tracker v3.1</h1>
+                    <p class="text-[10px] text-gray-400 mt-1">Final Edition by Pavan Kumar</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 hover:text-white">✕</button>
+                    <button onclick="logout()" class="text-xs text-red-400 hover:text-white border border-red-900 bg-red-900/20 px-2 py-1 rounded">Logout</button>
+                </div>
+            </div>
+            
+            <div class="p-4 border-b border-gray-700 bg-gray-800/50 flex flex-col gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="relative h-16 w-16 flex-shrink-0">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <span class="text-xs text-gray-400 uppercase font-bold">Solved</span>
+                        <span class="text-xl font-bold text-white"><span id="completed-count">0</span> / <span id="total-count">0</span></span>
+                    </div>
+                </div>
+                <button onclick="loadPlayground()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded transition flex items-center justify-center gap-2 shadow-lg">
+                    <span>⚡</span> Code Playground
+                </button>
+            </div>
+            
+            <nav class="flex-1 overflow-y-auto p-4 space-y-6">
+                <div>
+                    <h3 class="px-2 text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Problem Sets</h3>
+                    <div class="space-y-1">
+                        <button onclick="loadChapter(0)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-gray-300 transition">0. Intro + Scratch</button>
+                        <button onclick="loadChapter(1)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-gray-300 transition">1. C Language</button>
+                        <button onclick="loadChapter(2)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-gray-300 transition">2. Arrays</button>
+                        <button onclick="loadChapter(3)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-purple-300 transition">3. Algorithms</button>
+                        <button onclick="loadChapter(4)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-red-300 transition">4. Memory</button>
+                        <button onclick="loadChapter(5)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-indigo-300 transition">5. Data Structures</button>
+                        <div class="border-t border-gray-700 my-2 pt-2"></div>
+                        <button onclick="loadChapter(6)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-yellow-300 transition">6. Python</button>
+                        <button onclick="loadChapter(7)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-blue-300 transition">7. SQL</button>
+                        <button onclick="loadChapter(8)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-pink-300 transition">8. HTML/CSS/JS</button>
+                        <button onclick="loadChapter(9)" class="w-full text-left px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 text-green-300 transition">9. Flask</button>
+                    </div>
+                </div>
+                <div id="problem-list-section" class="hidden">
+                    <div id="problem-list-container" class="space-y-6"></div>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-900 pt-16 lg:pt-0">
+            <header class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center shadow-md">
+                <div>
+                    <h2 id="problem-title" class="text-lg font-bold text-white truncate max-w-[200px] lg:max-w-none">Select a Chapter</h2>
+                    <div class="flex gap-4 text-xs text-gray-400 font-mono mt-0.5">
+                        <span id="problem-id-display">ID: --</span>
+                    </div>
+                </div>
+                
+                <div id="lang-selector-container" class="hidden">
+                    <select id="playground-lang" onchange="switchPlaygroundLang()" class="bg-gray-700 text-white text-sm rounded px-3 py-1 border border-gray-600 focus:outline-none">
+                        <option value="c">C</option>
+                        <option value="cpp">C++</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="html">HTML/CSS/JS</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-4 lg:gap-6" id="timer-box">
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden lg:block">Time Spent</span>
+                        <span id="timer-display" class="text-lg lg:text-xl font-mono text-blue-400 font-bold">00:00</span>
+                    </div>
+                    <div id="status-badge" class="text-[10px] lg:text-xs font-bold font-mono text-gray-400 bg-gray-900 px-2 lg:px-3 py-1.5 rounded border border-gray-700">PENDING</div>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-auto p-4 lg:p-6 space-y-4 lg:space-y-6">
+                <div id="info-card" class="bg-gray-800 rounded-xl p-4 lg:p-6 shadow-lg border border-gray-700">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-base lg:text-lg font-bold text-purple-400">Problem Description</h3>
+                        <div class="flex gap-2">
+                            <span id="lang-badge" class="text-[10px] lg:text-xs bg-gray-700 text-gray-200 px-2 py-1 rounded border border-gray-600">C</span>
+                            <span id="diff-badge" class="text-[10px] lg:text-xs bg-purple-900 text-purple-200 px-2 py-1 rounded border border-purple-700">Easy</span>
+                        </div>
+                    </div>
+                    <p id="problem-desc" class="text-sm lg:text-base text-gray-300 leading-relaxed mb-4">Select a chapter from the sidebar.</p>
+                    <div class="bg-gray-900 rounded-lg p-3 lg:p-4 border border-gray-600 font-mono text-xs lg:text-sm space-y-2">
+                        <div class="flex gap-4 border-b border-gray-700 pb-2 mb-2">
+                            <span class="text-gray-500 w-16 uppercase text-[10px]">Test Case</span>
+                            <span class="text-gray-500 uppercase text-[10px]">Values</span>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="text-yellow-500 w-16">Input:</span>
+                            <span class="text-gray-300 truncate" id="test-input">N/A</span>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="text-green-500 w-16">Exp. Out:</span>
+                            <span class="text-gray-300 truncate" id="test-output">N/A</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col lg:grid lg:grid-cols-2 gap-4 lg:gap-6 h-[600px] lg:h-[500px]">
+                    <div class="flex flex-col bg-[#1e1e1e] rounded-xl shadow-lg border border-gray-700 overflow-hidden h-1/2 lg:h-full">
+                        <div class="bg-[#252526] px-4 py-2 flex justify-between items-center border-b border-[#3e3e42]">
+                            <h3 class="text-xs lg:text-sm font-bold text-gray-200" id="editor-filename">main.c</h3>
+                            <div class="flex items-center gap-4">
+                                 <button onclick="resetCode()" class="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-wider transition focus:outline-none">
+                                    ⟳ Reset
+                                 </button>
+                                 <span id="save-status" class="text-[10px] text-gray-500 uppercase tracking-wider">Unsaved</span>
+                            </div>
+                        </div>
+                        <div id="monaco-container" class="flex-1 w-full h-full"></div>
+                    </div>
+
+                    <div class="flex flex-col bg-black rounded-xl shadow-lg border border-gray-700 overflow-hidden h-1/2 lg:h-full relative">
+                        <div class="bg-gray-800 px-4 py-2 flex justify-between items-center border-b border-gray-700">
+                            <h3 id="output-title" class="text-xs lg:text-sm font-bold text-gray-400">Terminal Output</h3>
+                            <button onclick="clearTerminal()" class="text-xs text-gray-400 hover:text-white">Clear</button>
+                        </div>
+                        <div id="terminal-output" class="flex-1 p-4 font-mono text-xs lg:text-sm text-gray-300 overflow-auto whitespace-pre-wrap terminal-text">Waiting for code run...</div>
+                        <iframe id="web-preview" class="hidden flex-1 w-full h-full bg-white"></iframe>
+                    </div>
+                </div>
+
+                <div id="success-box" class="hidden animate-slide-in bg-black border border-green-500 text-green-400 p-4 rounded-lg font-mono text-center shadow-[0_0_15px_rgba(34,197,94,0.3)] flex flex-col items-center justify-center gap-1">
+                    <span class="text-2xl"></span>
+                    <span class="font-bold text-lg">Correct Answer!</span>
+                    <span class="text-sm text-green-600">Progress Saved.</span>
+                </div>
+
+                <div class="flex gap-4 pb-10">
+                    <button onclick="runCode()" id="run-btn" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition shadow-lg flex items-center justify-center gap-2 text-sm lg:text-base">
+                        <span>▶</span> Run
+                    </button>
+                    <button onclick="markAsDone()" id="submit-btn" class="flex-1 bg-gray-600 cursor-not-allowed opacity-50 text-white font-bold py-3 rounded-lg transition shadow-lg flex items-center justify-center gap-2 text-sm lg:text-base" disabled>
+                        <span>✓</span> Submit
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+
+        // --- CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCi_Fx58E_OOkzofBApcj3unnitJ6a0vd4",
+            authDomain: "problemtracker-808bc.firebaseapp.com",
+            projectId: "problemtracker-808bc",
+            storageBucket: "problemtracker-808bc.firebasestorage.app",
+            messagingSenderId: "62173895306",
+            appId: "1:62173895306:web:558039efe7cb2ebfd2eb73"
+        };
+        const OWNER_EMAIL = "pppk132006@gmail.com"; 
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        let editor; let currentProblem = null; let isPlayground = false; 
+        let completedProblems = new Map(); let timerInterval = null; let secondsElapsed = 0; let currentUser = null;
+
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('sidebar-closed'); sidebar.classList.toggle('sidebar-open');
+            if(editor) setTimeout(() => editor.layout(), 300);
+        };
+
+        const chaptersData = {
+            0: [ 
+                { id: "0.1", title: "Hello World", desc: "Make a sprite say 'Hello, World!'", type: "Easy", input: "Flag", output: "Hello World", lang: "c" } 
+            ],
+            1: [
+                // --- CH 1 EASY ---
+                { id: "1.1", title: "Initials", desc: "Take a first and last name and print initials (e.g., 'Brian Yu' -> 'BY').", type: "Easy", input: "Brian Yu", output: "BY", lang: "c", starter: "#include <stdio.h>\n#include <ctype.h>\n#include <string.h>\n\nint main() {\n    // Write code here\n    return 0;\n}" },
+                { id: "1.2", title: "Temp Converter", desc: "Convert Celsius to Fahrenheit. Formula: F = (C * 9/5) + 32.", type: "Easy", input: "0", output: "32", lang: "c", starter: "" },
+                { id: "1.3", title: "The Squarer", desc: "Ask for an integer and print its square.", type: "Easy", input: "5", output: "25", lang: "c", starter: "" },
+                { id: "1.4", title: "Tax Calculator", desc: "Calculate price with 5% tax. Input 100.", type: "Easy", input: "100", output: "105.00", lang: "c", starter: "" },
+                { id: "1.5", title: "Even or Odd", desc: "Check if a number is 'Even' or 'Odd'.", type: "Easy", input: "42", output: "Even", lang: "c", starter: "" },
+                { id: "1.6", title: "ASCII Value", desc: "Print the integer ASCII value of a character.", type: "Easy", input: "A", output: "65", lang: "c", starter: "" },
+                { id: "1.7", title: "Age in Days", desc: "Convert age in years to days (multiply by 365).", type: "Easy", input: "20", output: "7300", lang: "c", starter: "" },
+                { id: "1.8", title: "Rectangle Area", desc: "Input length and width (space separated). Print Area.", type: "Easy", input: "10 5", output: "50", lang: "c", starter: "" },
+                { id: "1.9", title: "Simple Interest", desc: "Calc Interest (I = P*R*T/100). Input: 1000 5 2", type: "Easy", input: "1000 5 2", output: "100", lang: "c", starter: "" },
+                { id: "1.10", title: "The Greeter", desc: "Input name. Print 'Hello, [Name]'.", type: "Easy", input: "Alice", output: "Hello, Alice", lang: "c", starter: "" },
+                { id: "1.11", title: "Remainder Finder", desc: "Find remainder of two numbers (e.g. 10 % 3).", type: "Easy", input: "10 3", output: "1", lang: "c", starter: "" },
+                { id: "1.12", title: "Grade Checker", desc: "If score >= 50 print 'Pass', else 'Fail'.", type: "Easy", input: "50", output: "Pass", lang: "c", starter: "" },
+                { id: "1.13", title: "Swap Numbers", desc: "Input two numbers, print them swapped.", type: "Easy", input: "1 2", output: "2 1", lang: "c", starter: "" },
+                { id: "1.14", title: "Cm to Inches", desc: "Convert cm to inches (divide by 2.54). Print to 2 decimal places.", type: "Easy", input: "2.54", output: "1.00", lang: "c", starter: "" },
+                { id: "1.15", title: "Char Increment", desc: "Input a char, print the next one (A -> B).", type: "Easy", input: "A", output: "B", lang: "c", starter: "" },
+                // --- CH 1 MEDIUM ---
+                { id: "1.16", title: "Factorial Finder", desc: "Calculate n! (e.g. 5! = 120).", type: "Medium", input: "5", output: "120", lang: "c", starter: "" },
+                { id: "1.17", title: "Multiplication Table", desc: "Print 2x1=2 to 2x3=6 (Just print the first 3 lines for test).", type: "Medium", input: "2", output: "2\n4\n6", lang: "c", starter: "" },
+                { id: "1.18", title: "Sum of N", desc: "Sum of 1 to N. Input 5 -> 15.", type: "Medium", input: "5", output: "15", lang: "c", starter: "" },
+                { id: "1.19", title: "Triangle Validator", desc: "Input 3 angles. Print 'Valid' if sum is 180.", type: "Medium", input: "60 60 60", output: "Valid", lang: "c", starter: "" },
+                { id: "1.20", title: "FizzBuzz", desc: "Input 3 (Output 'Fizz'), 5 ('Buzz'), or 15 ('FizzBuzz'). Test with 15.", type: "Medium", input: "15", output: "FizzBuzz", lang: "c", starter: "" },
+                { id: "1.21", title: "Power Function", desc: "Calc a^b without math.h. Input 2 3 -> 8.", type: "Medium", input: "2 3", output: "8", lang: "c", starter: "" },
+                { id: "1.22", title: "Count Down", desc: "Print N down to 0 space separated.", type: "Medium", input: "3", output: "3 2 1 0", lang: "c", starter: "" },
+                { id: "1.23", title: "Vowel Counter", desc: "Count vowels in a word.", type: "Medium", input: "apple", output: "2", lang: "c", starter: "" },
+                { id: "1.24", title: "Nested Square", desc: "Print N rows of N hashes.", type: "Medium", input: "2", output: "##\n##", lang: "c", starter: "" },
+                { id: "1.25", title: "Average Calc", desc: "Input 3 numbers, print integer average.", type: "Medium", input: "10 20 30", output: "20", lang: "c", starter: "" },
+                { id: "1.26", title: "Leap Year", desc: "Check if year is Leap. Input 2024 -> 'Leap'.", type: "Medium", input: "2024", output: "Leap", lang: "c", starter: "" },
+                { id: "1.27", title: "Positive Only", desc: "Input -5 then 5. Program should print 5 (the first positive).", type: "Medium", input: "-5 5", output: "5", lang: "c", starter: "" },
+                { id: "1.28", title: "Circle Properties", desc: "Input radius 1. Print Area (3.14).", type: "Medium", input: "1", output: "3.14", lang: "c", starter: "" },
+                { id: "1.29", title: "Digit Sum", desc: "Sum digits of 123 -> 6.", type: "Medium", input: "123", output: "6", lang: "c", starter: "" },
+                { id: "1.30", title: "Char Categorizer", desc: "Input 'A'. Print 'Uppercase'.", type: "Medium", input: "A", output: "Uppercase", lang: "c", starter: "" },
+                // --- CH 1 HARD ---
+                { id: "1.31", title: "Prime Tester", desc: "Check if N is Prime (1=Yes, 0=No).", type: "Hard", input: "7", output: "1", lang: "c", starter: "" },
+                { id: "1.32", title: "Fibonacci", desc: "Print first N fib numbers. Input 5.", type: "Hard", input: "5", output: "0 1 1 2 3", lang: "c", starter: "" },
+                { id: "1.33", title: "Binary to Decimal", desc: "Convert 101 to 5.", type: "Hard", input: "101", output: "5", lang: "c", starter: "" },
+                { id: "1.34", title: "Pyramid Right", desc: "Print right aligned pyramid height 2.", type: "Hard", input: "2", output: " #\n##", lang: "c", starter: "" },
+                { id: "1.35", title: "Collatz Conjecture", desc: "Steps to reach 1 from 6.", type: "Hard", input: "6", output: "8", lang: "c", starter: "" },
+                { id: "1.36", title: "Decimal to Binary", desc: "Convert 5 to 101.", type: "Hard", input: "5", output: "101", lang: "c", starter: "" },
+                { id: "1.37", title: "Perfect Number", desc: "Is 6 perfect? (1=Yes).", type: "Hard", input: "6", output: "1", lang: "c", starter: "" },
+                { id: "1.38", title: "GCD Finder", desc: "GCD of 10 and 5.", type: "Hard", input: "10 5", output: "5", lang: "c", starter: "" },
+                { id: "1.39", title: "Number Reverser", desc: "Reverse 123 -> 321.", type: "Hard", input: "123", output: "321", lang: "c", starter: "" },
+                { id: "1.40", title: "Armstrong Check", desc: "Is 153 Armstrong? (1=Yes).", type: "Hard", input: "153", output: "1", lang: "c", starter: "" },
+                { id: "1.41", title: "Half Diamond", desc: "Print * then ** then *.", type: "Hard", input: "Run", output: "*\n**\n*", lang: "c", starter: "" },
+                { id: "1.42", title: "Change Machine", desc: "Min coins for 26 cents (Quarter+Penny = 2).", type: "Hard", input: "26", output: "2", lang: "c", starter: "" },
+                { id: "1.43", title: "Palindrome Num", desc: "Is 121 palindrome? (1=Yes).", type: "Hard", input: "121", output: "1", lang: "c", starter: "" },
+                { id: "1.44", title: "Nested Table", desc: "Print 1x1=1 (just first line).", type: "Hard", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "1.45", title: "Luhn Validator", desc: "Simulate card check (Output Valid).", type: "Hard", input: "Run", output: "Valid", lang: "c", starter: "" },
+                // --- CH 1 PROJECTS ---
+                { id: "1.46", title: "ATM Simulator", desc: "Input 100 to Deposit. Print Balance.", type: "Project", input: "100", output: "100", lang: "c", starter: "" },
+                { id: "1.47", title: "Text Adventure", desc: "Input 'North'. Print 'You go North'.", type: "Project", input: "North", output: "You go North", lang: "c", starter: "" },
+                { id: "1.48", title: "Unit Converter", desc: "Convert 1km to m. Input 1.", type: "Project", input: "1", output: "1000", lang: "c", starter: "" },
+                { id: "1.49", title: "Simple Calculator", desc: "Input 10 5 +. Output 15.", type: "Project", input: "10 5 +", output: "15", lang: "c", starter: "" },
+                { id: "1.50", title: "Number Guess", desc: "Simulate a correct guess (Print 'Correct').", type: "Project", input: "50", output: "Correct", lang: "c", starter: "" }
+            ],
+            2: [
+                // --- CH 2 EASY (1-15) ---
+                { id: "2.1", title: "First & Last", desc: "Init array {1,2,3,4,5}. Print first and last elements.", type: "Easy", input: "Run", output: "1 5", lang: "c", starter: "#include <stdio.h>\nint main() {\n    int arr[] = {1, 2, 3, 4, 5};\n    // Print here\n    return 0;\n}" },
+                { id: "2.2", title: "Array Summer", desc: "Sum of array {1.0, 2.0, ... 10.0}. Output 55.00.", type: "Easy", input: "Run", output: "55.00", lang: "c", starter: "" },
+                { id: "2.3", title: "String Shouter", desc: "Convert 'hello' to 'HELLO' using toupper.", type: "Easy", input: "hello", output: "HELLO", lang: "c", starter: "" },
+                { id: "2.4", title: "Count the 'A's", desc: "Count 'a' or 'A' in 'Apple'. Output 1.", type: "Easy", input: "Apple", output: "1", lang: "c", starter: "" },
+                { id: "2.5", title: "Reverse Word", desc: "Reverse string 'abc'. Output 'cba'.", type: "Easy", input: "abc", output: "cba", lang: "c", starter: "" },
+                { id: "2.6", title: "Initials Only", desc: "Print 'BY' from 'Brian Yu'.", type: "Easy", input: "Brian Yu", output: "BY", lang: "c", starter: "" },
+                { id: "2.7", title: "The Constant Array", desc: "Print 7 days (Use 'Sun' for test).", type: "Easy", input: "Run", output: "Sun", lang: "c", starter: "" },
+                { id: "2.8", title: "Find the Max", desc: "Find max in {1, 5, 3}. Output 5.", type: "Easy", input: "Run", output: "5", lang: "c", starter: "" },
+                { id: "2.9", title: "String Length", desc: "Calc length of 'hi' (without strlen). Output 2.", type: "Easy", input: "hi", output: "2", lang: "c", starter: "" },
+                { id: "2.10", title: "Replace Spaces", desc: "Replace space with _ in 'a b'. Output 'a_b'.", type: "Easy", input: "a b", output: "a_b", lang: "c", starter: "" },
+                { id: "2.11", title: "Odd Indexer", desc: "Print elem at index 1 of {10, 20, 30}. Output 20.", type: "Easy", input: "Run", output: "20", lang: "c", starter: "" },
+                { id: "2.12", title: "Vertical String", desc: "Print 'hi' vertically.", type: "Easy", input: "hi", output: "h\ni", lang: "c", starter: "" },
+                { id: "2.13", title: "Array Copier", desc: "Copy arr1 to arr2 and print first element.", type: "Easy", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "2.14", title: "Average Grade", desc: "Avg of 10, 20, 30, 40, 50. Output 30.", type: "Easy", input: "10 20 30 40 50", output: "30", lang: "c", starter: "" },
+                { id: "2.15", title: "Zero Out", desc: "Set array to 0s. Print first element.", type: "Easy", input: "Run", output: "0", lang: "c", starter: "" },
+
+                // --- CH 2 MEDIUM (16-30) ---
+                { id: "2.16", title: "Linear Search", desc: "Find '5' in {1, 5, 9}. Output index 1.", type: "Medium", input: "5", output: "1", lang: "c", starter: "" },
+                { id: "2.17", title: "Palindrome Checker", desc: "Is 'racecar' palindrome? (1=Yes).", type: "Medium", input: "racecar", output: "1", lang: "c", starter: "" },
+                { id: "2.18", title: "Acronym Creator", desc: "Get acronym of 'Portable Network Graphics'. Output 'PNG'.", type: "Medium", input: "Portable Network Graphics", output: "PNG", lang: "c", starter: "" },
+                { id: "2.19", title: "Vowel Remover", desc: "Remove vowels from 'apple'. Output 'ppl'.", type: "Medium", input: "apple", output: "ppl", lang: "c", starter: "" },
+                { id: "2.20", title: "Array Sorted?", desc: "Check if {1, 2, 3} is sorted. Output 'Sorted'.", type: "Medium", input: "Run", output: "Sorted", lang: "c", starter: "" },
+                { id: "2.21", title: "Frequency Counter", desc: "Count '1's in {1, 1, 2}. Output 2.", type: "Medium", input: "Run", output: "2", lang: "c", starter: "" },
+                { id: "2.22", title: "Caesar Cipher", desc: "Shift 'abc' by 1 -> 'bcd'.", type: "Medium", input: "abc", output: "bcd", lang: "c", starter: "" },
+                { id: "2.23", title: "Unique Elements", desc: "Print unique in {1, 1, 2}. Output '1 2'.", type: "Medium", input: "Run", output: "1 2", lang: "c", starter: "" },
+                { id: "2.24", title: "Sentence Counter", desc: "Count words in 'hi there'. Output 2.", type: "Medium", input: "hi there", output: "2", lang: "c", starter: "" },
+                { id: "2.25", title: "2D Grid Print", desc: "Print 1 2 3 / 4 5 6 / 7 8 9 formatted.", type: "Medium", input: "Run", output: "1 2 3\n4 5 6\n7 8 9", lang: "c", starter: "" },
+                { id: "2.26", title: "Target Finder", desc: "Find two nums in {1,2,3} sum to 5. Output '2 3'.", type: "Medium", input: "Run", output: "2 3", lang: "c", starter: "" },
+                { id: "2.27", title: "Capitalize Words", desc: "Capitalize 'hi there' -> 'Hi There'.", type: "Medium", input: "hi there", output: "Hi There", lang: "c", starter: "" },
+                { id: "2.28", title: "Mirror Array", desc: "Reverse {1,2,3} -> {3,2,1}. Print first elem.", type: "Medium", input: "Run", output: "3", lang: "c", starter: "" },
+                { id: "2.29", title: "Scalar Multiplier", desc: "Mult matrix by 2. Print first elem.", type: "Medium", input: "2", output: "2", lang: "c", starter: "" },
+                { id: "2.30", title: "Anagram Checker", desc: "Are 'listen' and 'silent' anagrams? (1=Yes).", type: "Medium", input: "listen silent", output: "1", lang: "c", starter: "" },
+
+                // --- CH 2 HARD (31-45) ---
+                { id: "2.31", title: "Vigenère Cipher", desc: "Shift 'a' by key 'b' (1). Output 'b'.", type: "Hard", input: "a b", output: "b", lang: "c", starter: "" },
+                { id: "2.32", title: "Binary Search", desc: "Find 50 in sorted 1-100. Output 49.", type: "Hard", input: "50", output: "49", lang: "c", starter: "" },
+                { id: "2.33", title: "Bubble Sort Sim", desc: "One pass on {3, 2, 1} -> {2, 1, 3}. Output '2 1 3'.", type: "Hard", input: "Run", output: "2 1 3", lang: "c", starter: "" },
+                { id: "2.34", title: "Matrix Addition", desc: "Sum two 3x3 identity matrices. Top left is 2.", type: "Hard", input: "Run", output: "2", lang: "c", starter: "" },
+                { id: "2.35", title: "The Mode Finder", desc: "Find mode of {1, 2, 2, 3}. Output 2.", type: "Hard", input: "Run", output: "2", lang: "c", starter: "" },
+                { id: "2.36", title: "String Compression", desc: "Compress 'aaabb' -> 'a3b2'.", type: "Hard", input: "aaabb", output: "a3b2", lang: "c", starter: "" },
+                { id: "2.37", title: "Rotation Cipher", desc: "Rotate {1,2,3} right by 1 -> {3,1,2}. Output first.", type: "Hard", input: "Run", output: "3", lang: "c", starter: "" },
+                { id: "2.38", title: "Substring Search", desc: "Find 'cat' in 'concatenation'. Output 1 (Found).", type: "Hard", input: "concatenation cat", output: "1", lang: "c", starter: "" },
+                { id: "2.39", title: "Scrabble Scorer", desc: "Score for 'cat' (3+1+1). Output 5.", type: "Hard", input: "cat", output: "5", lang: "c", starter: "" },
+                { id: "2.40", title: "Intersection", desc: "Intersect {1,2} and {2,3}. Output 2.", type: "Hard", input: "Run", output: "2", lang: "c", starter: "" },
+                { id: "2.41", title: "Remove Duplicates", desc: "Remove dups from {1,1,2}. Output '1 2'.", type: "Hard", input: "Run", output: "1 2", lang: "c", starter: "" },
+                { id: "2.42", title: "Longest Word", desc: "Longest in 'hi hello'. Output 'hello'.", type: "Hard", input: "hi hello", output: "hello", lang: "c", starter: "" },
+                { id: "2.43", title: "Matrix Transpose", desc: "Transpose 2x3. Print new rows.", type: "Hard", input: "Run", output: "3", lang: "c", starter: "" },
+                { id: "2.44", title: "Password Validator", desc: "Check 'Pass1!'. Output 0 (Needs 8 chars).", type: "Hard", input: "Pass1!", output: "0", lang: "c", starter: "" },
+                { id: "2.45", title: "Substitution Cipher", desc: "Swap a->z. Input 'a'. Output 'z'.", type: "Hard", input: "a", output: "z", lang: "c", starter: "" },
+
+                // --- CH 2 PROJECTS (46-50) ---
+                { id: "2.46", title: "Digital Gradebook", desc: "Store 'Alice' 90. Search 'Alice' -> 90.", type: "Project", input: "Alice", output: "90", lang: "c", starter: "" },
+                { id: "2.47", title: "Simple Encryption", desc: "Menu: 1 Encrypt 'hi' -> 'ij'.", type: "Project", input: "1 hi", output: "ij", lang: "c", starter: "" },
+                { id: "2.48", title: "Tic-Tac-Toe", desc: "Place X at 0 0. Output board state.", type: "Project", input: "0 0", output: "X _ _\n_ _ _\n_ _ _", lang: "c", starter: "" },
+                { id: "2.49", title: "Voting System", desc: "Vote A, B, A. Winner A.", type: "Project", input: "A B A", output: "A", lang: "c", starter: "" },
+                { id: "2.50", title: "CSV Simulator", desc: "Calc total for ID 1 (Price 10) and 2 (Price 20). Output 30.", type: "Project", input: "1 2", output: "30", lang: "c", starter: "" }
+            ],
+            // --- CHAPTER 3: ALGORITHMS ---
+            3: [
+                // EASY
+                { id: "3.1", title: "Big O ID", desc: "Print the Big O of a loop 1 to n. (Print 'O(n)').", type: "Easy", input: "Run", output: "O(n)", lang: "c", starter: "#include <stdio.h>\nint main() {\n    printf(\"O(n)\");\n    return 0;\n}" },
+                { id: "3.2", title: "Linear Search Int", desc: "Find 7 in {1,3,7}. Return index.", type: "Easy", input: "7", output: "2", lang: "c", starter: "" },
+                { id: "3.3", title: "String Search", desc: "Find 'Waldo' in array. Print 'Found'.", type: "Easy", input: "Waldo", output: "Found", lang: "c", starter: "" },
+                { id: "3.4", title: "Find Smallest", desc: "Find min in {5, 2, 9}. Output 2.", type: "Easy", input: "Run", output: "2", lang: "c", starter: "" },
+                { id: "3.5", title: "Iteration Count", desc: "Count steps to find 3 in {1,2,3}. Output 3.", type: "Easy", input: "3", output: "3", lang: "c", starter: "" },
+                { id: "3.6", title: "Phonebook Search", desc: "Find 'Mom' in struct array. Print number.", type: "Easy", input: "Mom", output: "123-456", lang: "c", starter: "" },
+                { id: "3.7", title: "Sort Checker", desc: "Check if {1, 2, 3} is sorted (1=Yes).", type: "Easy", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "3.8", title: "Constant Time", desc: "Access middle of array. Print value.", type: "Easy", input: "Run", output: "5", lang: "c", starter: "" },
+                { id: "3.9", title: "Space Complexity", desc: "Copying array requires O(n) space. Print 'O(n)'.", type: "Easy", input: "Run", output: "O(n)", lang: "c", starter: "" },
+                { id: "3.10", title: "Factorial Iterative", desc: "Calc 5! using loop. Output 120.", type: "Easy", input: "5", output: "120", lang: "c", starter: "" },
+                { id: "3.11", title: "Selection Smallest", desc: "Find smallest in {3, 1, 2}. Output 1.", type: "Easy", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "3.12", title: "Bubble Pass", desc: "Move largest (5) to end of {5, 1, 2}. Output '1 2 5'.", type: "Easy", input: "Run", output: "1 2 5", lang: "c", starter: "" },
+                { id: "3.13", title: "Binary Search Steps", desc: "Print midpoints for searching 7.", type: "Easy", input: "Run", output: "7", lang: "c", starter: "" },
+                { id: "3.14", title: "Recursive Hello", desc: "Print 'Hello' 3 times recursively.", type: "Easy", input: "3", output: "Hello\nHello\nHello", lang: "c", starter: "" },
+                { id: "3.15", title: "Recursive Sum", desc: "Sum 1 to 3 (6) recursively.", type: "Easy", input: "3", output: "6", lang: "c", starter: "" },
+
+                // MEDIUM
+                { id: "3.16", title: "Bubble Sort", desc: "Sort {3, 1, 2} -> {1, 2, 3}.", type: "Medium", input: "3 1 2", output: "1 2 3", lang: "c", starter: "" },
+                { id: "3.17", title: "Selection Sort", desc: "Sort {9, 5, 1} -> {1, 5, 9}.", type: "Medium", input: "9 5 1", output: "1 5 9", lang: "c", starter: "" },
+                { id: "3.18", title: "Binary Search Rec", desc: "Find 5 recursively in {1,3,5}. Output 2.", type: "Medium", input: "5", output: "2", lang: "c", starter: "" },
+                { id: "3.19", title: "Recursive Fib", desc: "Find 5th Fib number (5).", type: "Medium", input: "5", output: "5", lang: "c", starter: "" },
+                { id: "3.20", title: "Collatz Recursion", desc: "Steps for 6 -> 1. Output 8.", type: "Medium", input: "6", output: "8", lang: "c", starter: "" },
+                { id: "3.21", title: "Insertion Sort", desc: "Sort {4, 3, 2} -> {2, 3, 4}.", type: "Medium", input: "4 3 2", output: "2 3 4", lang: "c", starter: "" },
+                { id: "3.22", title: "Merge Step", desc: "Merge {1, 3} and {2, 4}. Output {1, 2, 3, 4}.", type: "Medium", input: "Run", output: "1 2 3 4", lang: "c", starter: "" },
+                { id: "3.23", title: "Recursive Power", desc: "2^3 recursively. Output 8.", type: "Medium", input: "2 3", output: "8", lang: "c", starter: "" },
+                { id: "3.24", title: "Reverse String Rec", desc: "Reverse 'abc' recursively. Output 'cba'.", type: "Medium", input: "abc", output: "cba", lang: "c", starter: "" },
+                { id: "3.25", title: "Linear Search Rec", desc: "Find 2 in {1,2,3}. Output 1.", type: "Medium", input: "2", output: "1", lang: "c", starter: "" },
+                { id: "3.26", title: "Counting Sort", desc: "Sort {2, 1, 2, 3}. Output {1, 2, 2, 3}.", type: "Medium", input: "Run", output: "1 2 2 3", lang: "c", starter: "" },
+                { id: "3.27", title: "Palindrome Rec", desc: "Is 'aba' palindrome? (1=Yes).", type: "Medium", input: "aba", output: "1", lang: "c", starter: "" },
+                { id: "3.28", title: "Merge Anatomy", desc: "Print 'Split' then 'Merge' to simulate steps.", type: "Medium", input: "Run", output: "Split\nMerge", lang: "c", starter: "" },
+                { id: "3.29", title: "Struct Sorting", desc: "Sort Students by score.", type: "Medium", input: "Run", output: "Alice 90\nBob 80", lang: "c", starter: "" },
+                { id: "3.30", title: "Rec Digit Sum", desc: "Sum digits of 123 (6).", type: "Medium", input: "123", output: "6", lang: "c", starter: "" },
+
+                // HARD
+                { id: "3.31", title: "Merge Sort Full", desc: "Implement Merge Sort. Sort {5,4,3,2,1}.", type: "Hard", input: "5 4 3 2 1", output: "1 2 3 4 5", lang: "c", starter: "" },
+                { id: "3.32", title: "Quick Sort Part", desc: "Partition {3, 1, 2} around 2.", type: "Hard", input: "Run", output: "1 2 3", lang: "c", starter: "" },
+                { id: "3.33", title: "Stable Sort", desc: "Sort stable pairs. Output order preserved.", type: "Hard", input: "Run", output: "Stable", lang: "c", starter: "" },
+                { id: "3.34", title: "Debug Binary", desc: "Fix infinite loop. Find 5.", type: "Hard", input: "5", output: "Found", lang: "c", starter: "" },
+                { id: "3.35", title: "Tower of Hanoi", desc: "Solve for n=3. Print moves.", type: "Hard", input: "3", output: "7 Moves", lang: "c", starter: "" },
+                { id: "3.36", title: "Matrix Mult", desc: "Multiply two 2x2 matrices.", type: "Hard", input: "Run", output: "Correct", lang: "c", starter: "" },
+                { id: "3.37", title: "First Occur", desc: "Find first '2' in {1, 2, 2}. Index 1.", type: "Hard", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "3.38", title: "Dutch Flag", desc: "Sort {2,0,2,1,1,0}.", type: "Hard", input: "Run", output: "0 0 1 1 2 2", lang: "c", starter: "" },
+                { id: "3.39", title: "Peak Finder", desc: "Find peak in {1, 3, 2}. Output 3.", type: "Hard", input: "Run", output: "3", lang: "c", starter: "" },
+                { id: "3.40", title: "Subset Sum", desc: "Can subset of {1, 2} sum to 3? (1=Yes).", type: "Hard", input: "3", output: "1", lang: "c", starter: "" },
+                { id: "3.41", title: "Rec Binary", desc: "Print binary of 5 (101).", type: "Hard", input: "5", output: "101", lang: "c", starter: "" },
+                { id: "3.42", title: "Sort Compare", desc: "Time Bubble vs Selection. Print 'Done'.", type: "Hard", input: "Run", output: "Done", lang: "c", starter: "" },
+                { id: "3.43", title: "Find Median", desc: "Median of {3, 1, 2}. Output 2.", type: "Hard", input: "Run", output: "2", lang: "c", starter: "" },
+                { id: "3.44", title: "Anagram Group", desc: "Group 'cat', 'act'. Output 'Grouped'.", type: "Hard", input: "Run", output: "Grouped", lang: "c", starter: "" },
+                { id: "3.45", title: "Staircase", desc: "Ways to climb 3 stairs (1 or 2 steps). Output 3.", type: "Hard", input: "3", output: "3", lang: "c", starter: "" },
+
+                // PROJECTS
+                { id: "3.46", title: "Election Sim", desc: "Plurality vote. A:2, B:1. Winner A.", type: "Project", input: "A A B", output: "A", lang: "c", starter: "" },
+                { id: "3.47", title: "Tideman Sim", desc: "Rank candidates. Output Winner.", type: "Project", input: "Run", output: "Winner", lang: "c", starter: "" },
+                { id: "3.48", title: "Phonebook Opt", desc: "Sort & Binary Search 1000 items.", type: "Project", input: "Run", output: "Found", lang: "c", starter: "" },
+                { id: "3.49", title: "Maze Solver", desc: "Backtrack to solve maze. Print Path.", type: "Project", input: "Run", output: "Solved", lang: "c", starter: "" },
+                { id: "3.50", title: "File Dedupe", desc: "Find duplicates in list. Output names.", type: "Project", input: "Run", output: "Duplicates Found", lang: "c", starter: "" }
+            ],
+
+            // --- CHAPTER 4: MEMORY ---
+            4: [
+                // EASY
+                { id: "4.1", title: "Address Printer", desc: "Print pointer address of x (use %p).", type: "Easy", input: "Run", output: "0x", lang: "c", starter: "#include <stdio.h>\nint main() {\n    int x = 5;\n    printf(\"%p\", &x);\n    return 0;\n}" },
+                { id: "4.2", title: "Pointer Assign", desc: "Use pointer p to print x (5).", type: "Easy", input: "Run", output: "5", lang: "c", starter: "" },
+                { id: "4.3", title: "Dereferencer", desc: "Change x to 20 using pointer. Print x.", type: "Easy", input: "Run", output: "20", lang: "c", starter: "" },
+                { id: "4.4", title: "Char Pointer", desc: "Print sizeof(char*) (usually 8).", type: "Easy", input: "Run", output: "8", lang: "c", starter: "" },
+                { id: "4.5", title: "Hex to Dec", desc: "Print 0xA as decimal (10).", type: "Easy", input: "Run", output: "10", lang: "c", starter: "" },
+                { id: "4.6", title: "Pointer Arith", desc: "Print diff between &arr[1] and &arr[0] (4 bytes).", type: "Easy", input: "Run", output: "4", lang: "c", starter: "" },
+                { id: "4.7", title: "NULL Check", desc: "Check if NULL is safe. Print 'Unsafe'.", type: "Easy", input: "Run", output: "Unsafe", lang: "c", starter: "" },
+                { id: "4.8", title: "String Address", desc: "Print address of first char of 'Hi'.", type: "Easy", input: "Run", output: "0x", lang: "c", starter: "" },
+                { id: "4.9", title: "Double Pointer", desc: "Use **pp to print value 5.", type: "Easy", input: "Run", output: "5", lang: "c", starter: "" },
+                { id: "4.10", title: "Swap Pointers", desc: "Swap x=1, y=2 using pointers.", type: "Easy", input: "Run", output: "2 1", lang: "c", starter: "" },
+                { id: "4.11", title: "Array via Ptr", desc: "Print arr[0] using *arr.", type: "Easy", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "4.12", title: "Double Math", desc: "Size of double pointer jump (8).", type: "Easy", input: "Run", output: "8", lang: "c", starter: "" },
+                { id: "4.13", title: "Const Pointer", desc: "Try to change const. (Simulate error/comment).", type: "Easy", input: "Run", output: "Error", lang: "c", starter: "" },
+                { id: "4.14", title: "Ptr Compare", desc: "Compare &arr[0] < &arr[1] (1=True).", type: "Easy", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "4.15", title: "Addr of Ptr", desc: "Print address of pointer variable.", type: "Easy", input: "Run", output: "0x", lang: "c", starter: "" },
+
+                // MEDIUM
+                { id: "4.16", title: "Malloc Int", desc: "Malloc int, assign 5, print.", type: "Medium", input: "Run", output: "5", lang: "c", starter: "" },
+                { id: "4.17", title: "Dynamic Array", desc: "Malloc array size 3. Fill {1,2,3}. Print.", type: "Medium", input: "Run", output: "1 2 3", lang: "c", starter: "" },
+                { id: "4.18", title: "String Copier", desc: "Malloc & Copy string 'Hi'. Print copy.", type: "Medium", input: "Run", output: "Hi", lang: "c", starter: "" },
+                { id: "4.19", title: "Memory Leak", desc: "Simulate malloc without free. Print 'Leaked'.", type: "Medium", input: "Run", output: "Leaked", lang: "c", starter: "" },
+                { id: "4.20", title: "Realloc Grow", desc: "Resize arr 2->4. Print 'Success'.", type: "Medium", input: "Run", output: "Success", lang: "c", starter: "" },
+                { id: "4.21", title: "Valgrind", desc: "Fix error. Print 'Clean'.", type: "Medium", input: "Run", output: "Clean", lang: "c", starter: "" },
+                { id: "4.22", title: "Dangling Ptr", desc: "Explain stack return issue. Print 'Unsafe'.", type: "Medium", input: "Run", output: "Unsafe", lang: "c", starter: "" },
+                { id: "4.23", title: "Struct Ptr", desc: "Malloc struct. Access via ->. Print val.", type: "Medium", input: "Run", output: "10", lang: "c", starter: "" },
+                { id: "4.24", title: "Buffer Overflow", desc: "Write past array end. Print 'Crash'.", type: "Medium", input: "Run", output: "Crash", lang: "c", starter: "" },
+                { id: "4.25", title: "File Write", desc: "Fprintf 'Hi' to file. Print 'Written'.", type: "Medium", input: "Run", output: "Written", lang: "c", starter: "" },
+                { id: "4.26", title: "File Read", desc: "Fgetc from file. Print content.", type: "Medium", input: "Run", output: "Content", lang: "c", starter: "" },
+                { id: "4.27", title: "Binary Write", desc: "Fwrite int array. Print 'Saved'.", type: "Medium", input: "Run", output: "Saved", lang: "c", starter: "" },
+                { id: "4.28", title: "Binary Read", desc: "Fread int array. Print 'Loaded'.", type: "Medium", input: "Run", output: "Loaded", lang: "c", starter: "" },
+                { id: "4.29", title: "Ptr Function", desc: "Return ptr to larger (5 vs 3). Output 5.", type: "Medium", input: "Run", output: "5", lang: "c", starter: "" },
+                { id: "4.30", title: "String Concat", desc: "Malloc join 'A' + 'B'. Output 'AB'.", type: "Medium", input: "Run", output: "AB", lang: "c", starter: "" },
+
+                // HARD
+                { id: "4.31", title: "Hex Dumper", desc: "Print file bytes 0xFF.", type: "Hard", input: "Run", output: "FF", lang: "c", starter: "" },
+                { id: "4.32", title: "BMP Header", desc: "Read width from BMP struct.", type: "Hard", input: "Run", output: "Width", lang: "c", starter: "" },
+                { id: "4.33", title: "Greyscale", desc: "Avg RGB pixels. Print 'Done'.", type: "Hard", input: "Run", output: "Done", lang: "c", starter: "" },
+                { id: "4.34", title: "Image Copy", desc: "Byte-by-byte copy. Print 'Copied'.", type: "Hard", input: "Run", output: "Copied", lang: "c", starter: "" },
+                { id: "4.35", title: "JPEG Detect", desc: "Check magic numbers. Print 'JPEG'.", type: "Hard", input: "Run", output: "JPEG", lang: "c", starter: "" },
+                { id: "4.36", title: "Reverse File", desc: "Read end-to-start. Print 'Reversed'.", type: "Hard", input: "Run", output: "Reversed", lang: "c", starter: "" },
+                { id: "4.37", title: "Memory Pool", desc: "Manage custom block. Print 'Alloc'.", type: "Hard", input: "Run", output: "Alloc", lang: "c", starter: "" },
+                { id: "4.38", title: "Deep Copy", desc: "Copy data not ptr. Print 'Deep'.", type: "Hard", input: "Run", output: "Deep", lang: "c", starter: "" },
+                { id: "4.39", title: "Bitwise Ops", desc: "Use & | ^. Print result.", type: "Hard", input: "Run", output: "Result", lang: "c", starter: "" },
+                { id: "4.40", title: "Endianness", desc: "Check Little/Big. Print 'Little'.", type: "Hard", input: "Run", output: "Little", lang: "c", starter: "" },
+                { id: "4.41", title: "Void Ptr", desc: "Cast void* to int*. Print val.", type: "Hard", input: "Run", output: "10", lang: "c", starter: "" },
+                { id: "4.42", title: "File Search", desc: "Find byte seq. Print Offset.", type: "Hard", input: "Run", output: "Offset", lang: "c", starter: "" },
+                { id: "4.43", title: "BMP Blur", desc: "Average neighbors. Print 'Blurred'.", type: "Hard", input: "Run", output: "Blurred", lang: "c", starter: "" },
+                { id: "4.44", title: "Recover Tool", desc: "Recover JPEGs. Print 'Recovered'.", type: "Hard", input: "Run", output: "Recovered", lang: "c", starter: "" },
+                { id: "4.45", title: "Custom Free", desc: "Nullify after free. Print 'Safe'.", type: "Hard", input: "Run", output: "Safe", lang: "c", starter: "" },
+
+                // PROJECTS
+                { id: "4.46", title: "Filter Suite", desc: "Apply filters. Output 'Filtered'.", type: "Project", input: "Run", output: "Filtered", lang: "c", starter: "" },
+                { id: "4.47", title: "Forensic Rec", desc: "Recover deleted files. Output 'Found'.", type: "Project", input: "Run", output: "Found", lang: "c", starter: "" },
+                { id: "4.48", title: "Simple DB", desc: "Binary struct DB. Output 'Record'.", type: "Project", input: "Run", output: "Record", lang: "c", starter: "" },
+                { id: "4.49", title: "File Splitter", desc: "Split large file. Output 'Split'.", type: "Project", input: "Run", output: "Split", lang: "c", starter: "" },
+                { id: "4.50", title: "Virtual RAM", desc: "Simulate RAM array. Output 'RAM'.", type: "Project", input: "Run", output: "RAM", lang: "c", starter: "" }
+            ],
+
+            // --- CHAPTER 5: DATA STRUCTURES ---
+            5: [
+                // EASY
+                { id: "5.1", title: "Node Struct", desc: "Define node {val, next}.", type: "Easy", input: "Run", output: "Defined", lang: "c", starter: "struct node { int val; struct node *next; };" },
+                { id: "5.2", title: "Head List", desc: "Init head node val=1. Print 1.", type: "Easy", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "5.3", title: "Manual Link", desc: "Link n1->n2. Print n2 via n1.", type: "Easy", input: "Run", output: "2", lang: "c", starter: "" },
+                { id: "5.4", title: "List Traversal", desc: "Print list 1->2->3.", type: "Easy", input: "Run", output: "1 2 3", lang: "c", starter: "" },
+                { id: "5.5", title: "The Searcher", desc: "Find 2 in list. Print 'Found'.", type: "Easy", input: "Run", output: "Found", lang: "c", starter: "" },
+                { id: "5.6", title: "Count Nodes", desc: "Count nodes in 1->2. Output 2.", type: "Easy", input: "Run", output: "2", lang: "c", starter: "" },
+                { id: "5.7", title: "Prepend Node", desc: "Add to front. Print new head.", type: "Easy", input: "Run", output: "New", lang: "c", starter: "" },
+                { id: "5.8", title: "List Freeing", desc: "Free list. Print 'Freed'.", type: "Easy", input: "Run", output: "Freed", lang: "c", starter: "" },
+                { id: "5.9", title: "Tail Finder", desc: "Find last node. Print val.", type: "Easy", input: "Run", output: "Last", lang: "c", starter: "" },
+                { id: "5.10", title: "Array to List", desc: "Convert {1,2} to list. Print list.", type: "Easy", input: "Run", output: "1 2", lang: "c", starter: "" },
+                { id: "5.11", title: "LL Initials", desc: "Store 'B'->'Y'. Print 'BY'.", type: "Easy", input: "Run", output: "BY", lang: "c", starter: "" },
+                { id: "5.12", title: "Empty Check", desc: "Check if NULL. Print 'Empty'.", type: "Easy", input: "Run", output: "Empty", lang: "c", starter: "" },
+                { id: "5.13", title: "Simple Stack", desc: "Pop head. Print 'Popped'.", type: "Easy", input: "Run", output: "Popped", lang: "c", starter: "" },
+                { id: "5.14", title: "Simple Queue", desc: "Enqueue tail. Print 'Added'.", type: "Easy", input: "Run", output: "Added", lang: "c", starter: "" },
+                { id: "5.15", title: "Update Value", desc: "Change node 1 to 9. Print 9.", type: "Easy", input: "Run", output: "9", lang: "c", starter: "" },
+
+                // MEDIUM
+                { id: "5.16", title: "BST Node", desc: "Define BST node.", type: "Medium", input: "Run", output: "Defined", lang: "c", starter: "" },
+                { id: "5.17", title: "Hash Function", desc: "Hash 'A' -> 0. Output 0.", type: "Medium", input: "A", output: "0", lang: "c", starter: "" },
+                { id: "5.18", title: "Hash Table", desc: "Init table size 26. Print 'Init'.", type: "Medium", input: "Run", output: "Init", lang: "c", starter: "" },
+                { id: "5.19", title: "BST Search", desc: "Find 5 in BST. Print 'Found'.", type: "Medium", input: "Run", output: "Found", lang: "c", starter: "" },
+                { id: "5.20", title: "Insert BST", desc: "Insert 3. Print 'Inserted'.", type: "Medium", input: "Run", output: "Inserted", lang: "c", starter: "" },
+                { id: "5.21", title: "Collision", desc: "Explain collision. Print 'Explained'.", type: "Medium", input: "Run", output: "Explained", lang: "c", starter: "" },
+                { id: "5.22", title: "Chaining", desc: "Chain 'Cat', 'Car'. Print 'Chained'.", type: "Medium", input: "Run", output: "Chained", lang: "c", starter: "" },
+                { id: "5.23", title: "Tree Height", desc: "Calc height. Output integer.", type: "Medium", input: "Run", output: "Height", lang: "c", starter: "" },
+                { id: "5.24", title: "In-order", desc: "Print BST sorted. 1 2 3.", type: "Medium", input: "Run", output: "1 2 3", lang: "c", starter: "" },
+                { id: "5.25", title: "Trie Node", desc: "Define Trie node.", type: "Medium", input: "Run", output: "Defined", lang: "c", starter: "" },
+                { id: "5.26", title: "Leaf Counter", desc: "Count leaves. Output int.", type: "Medium", input: "Run", output: "Count", lang: "c", starter: "" },
+                { id: "5.27", title: "Reverse List", desc: "Reverse 1->2. Output 2->1.", type: "Medium", input: "Run", output: "2 1", lang: "c", starter: "" },
+                { id: "5.28", title: "Doubly Linked", desc: "Link prev/next. Print.", type: "Medium", input: "Run", output: "Linked", lang: "c", starter: "" },
+                { id: "5.29", title: "Queue Peek", desc: "Return front. Output val.", type: "Medium", input: "Run", output: "Val", lang: "c", starter: "" },
+                { id: "5.30", title: "Circular Check", desc: "Detect loop. Print 'Loop'.", type: "Medium", input: "Run", output: "Loop", lang: "c", starter: "" },
+
+                // HARD
+                { id: "5.31", title: "Trie Insert", desc: "Insert 'Cat'. Print 'Inserted'.", type: "Hard", input: "Run", output: "Inserted", lang: "c", starter: "" },
+                { id: "5.32", title: "Trie Search", desc: "Find 'Cat'. Print 'Found'.", type: "Hard", input: "Run", output: "Found", lang: "c", starter: "" },
+                { id: "5.33", title: "Speller Check", desc: "Check word. Print 'Correct'.", type: "Hard", input: "Run", output: "Correct", lang: "c", starter: "" },
+                { id: "5.34", title: "Load Factor", desc: "Calc avg length. Print float.", type: "Hard", input: "Run", output: "0.5", lang: "c", starter: "" },
+                { id: "5.35", title: "BST Delete", desc: "Delete node. Print 'Deleted'.", type: "Hard", input: "Run", output: "Deleted", lang: "c", starter: "" },
+                { id: "5.36", title: "Balanced Check", desc: "Is balanced? (1=Yes).", type: "Hard", input: "Run", output: "1", lang: "c", starter: "" },
+                { id: "5.37", title: "Free Trie", desc: "Free all. Print 'Freed'.", type: "Hard", input: "Run", output: "Freed", lang: "c", starter: "" },
+                { id: "5.38", title: "Priority Queue", desc: "Pop highest prio. Print val.", type: "Hard", input: "Run", output: "Val", lang: "c", starter: "" },
+                { id: "5.39", title: "Merge Lists", desc: "Merge 1->3, 2->4. Output 1->2->3->4.", type: "Hard", input: "Run", output: "1 2 3 4", lang: "c", starter: "" },
+                { id: "5.40", title: "BFS Tree", desc: "Level order. Print.", type: "Hard", input: "Run", output: "BFS", lang: "c", starter: "" },
+                { id: "5.41", title: "DFS Tree", desc: "Pre/In/Post order. Print.", type: "Hard", input: "Run", output: "DFS", lang: "c", starter: "" },
+                { id: "5.42", title: "Re-hashing", desc: "Resize table. Print 'Resized'.", type: "Hard", input: "Run", output: "Resized", lang: "c", starter: "" },
+                { id: "5.43", title: "Min-Heap", desc: "Check heap property. Print 'Valid'.", type: "Hard", input: "Run", output: "Valid", lang: "c", starter: "" },
+                { id: "5.44", title: "Dict Compare", desc: "Speed test. Print 'Done'.", type: "Hard", input: "Run", output: "Done", lang: "c", starter: "" },
+                { id: "5.45", title: "Red-Black Logic", desc: "Explain balance. Print 'Logic'.", type: "Hard", input: "Run", output: "Logic", lang: "c", starter: "" },
+
+                // PROJECTS
+                { id: "5.46", title: "Speller Pro", desc: "Full spell check. Output 'Checked'.", type: "Project", input: "Run", output: "Checked", lang: "c", starter: "" },
+                { id: "5.47", title: "Family Tree", desc: "Lineage tree. Output 'Tree'.", type: "Project", input: "Run", output: "Tree", lang: "c", starter: "" },
+                { id: "5.48", title: "Undo/Redo", desc: "Stack based undo. Output 'Undone'.", type: "Project", input: "Run", output: "Undone", lang: "c", starter: "" },
+                { id: "5.49", title: "Music Player", desc: "Doubly Linked List. Output 'Playing'.", type: "Project", input: "Run", output: "Playing", lang: "c", starter: "" },
+                { id: "5.50", title: "Contact Trie", desc: "Auto-complete. Output 'Found'.", type: "Project", input: "Run", output: "Found", lang: "c", starter: "" }
+            ],
+            6: [
+                // EASY
+                { id: "6.1", title: "Python Greeter", desc: "Ask for name 'David'.", type: "Easy", input: "David", output: "hello, David", lang: "python", starter: "name = input()\nprint(f\"hello, {name}\")" },
+                { id: "6.2", title: "Sum of Two", desc: "Sum 2 and 3.", type: "Easy", input: "2\n3", output: "5", lang: "python", starter: "x = int(input())\ny = int(input())\nprint(x + y)" },
+                { id: "6.3", title: "String Mult", desc: "Print 'a' 3 times.", type: "Easy", input: "a\n3", output: "aaa", lang: "python", starter: "" },
+                { id: "6.4", title: "Case Swapper", desc: "Print 'Hi' as 'hi' then 'HI'.", type: "Easy", input: "Hi", output: "hi\nHI", lang: "python", starter: "" },
+                { id: "6.5", title: "List Creator", desc: "Print 3rd fruit of 5.", type: "Easy", input: "Run", output: "Apple", lang: "python", starter: "fruits = ['A','B','Apple','D','E']\nprint(fruits[2])" },
+                { id: "6.6", title: "Range Loop", desc: "Print 1 to 3 (for test).", type: "Easy", input: "Run", output: "1\n2\n3", lang: "python", starter: "for i in range(1, 4): print(i)" },
+                { id: "6.7", title: "Even or Odd", desc: "Is 4 Even?", type: "Easy", input: "4", output: "Even", lang: "python", starter: "" },
+                { id: "6.8", title: "Length Finder", desc: "Len of 'Hi'.", type: "Easy", input: "Hi", output: "2", lang: "python", starter: "" },
+                { id: "6.9", title: "Simple Append", desc: "Add 'Code' to list.", type: "Easy", input: "Code", output: "['Code']", lang: "python", starter: "" },
+                { id: "6.10", title: "The Splitter", desc: "Split 'A B'.", type: "Easy", input: "A B", output: "A\nB", lang: "python", starter: "" },
+                { id: "6.11", title: "Type Checker", desc: "Print type(5).", type: "Easy", input: "Run", output: "<class 'int'>", lang: "python", starter: "print(type(5))" },
+                { id: "6.12", title: "Square List", desc: "Square [2].", type: "Easy", input: "Run", output: "4", lang: "python", starter: "" },
+                { id: "6.13", title: "Dict Basics", desc: "Dict with title.", type: "Easy", input: "Run", output: "Book", lang: "python", starter: "" },
+                { id: "6.14", title: "In Operator", desc: "Is 'z' in 'zoo'? (True).", type: "Easy", input: "zoo", output: "True", lang: "python", starter: "" },
+                { id: "6.15", title: "F-Strings", desc: "Print $10.00.", type: "Easy", input: "Run", output: "The price is $10.00", lang: "python", starter: "" },
+
+                // MEDIUM
+                { id: "6.16", title: "Mario Python", desc: "Print ##.", type: "Medium", input: "2", output: "#\n##", lang: "python", starter: "" },
+                { id: "6.17", title: "List Comp", desc: "Evens of [1,2].", type: "Medium", input: "Run", output: "[2]", lang: "python", starter: "" },
+                { id: "6.18", title: "Dict Search", desc: "Find 'Bob'.", type: "Medium", input: "Bob", output: "123", lang: "python", starter: "" },
+                { id: "6.19", title: "Vowel Count", desc: "Count in 'apple'.", type: "Medium", input: "apple", output: "2", lang: "python", starter: "" },
+                { id: "6.20", title: "Unique Words", desc: "Set of 'a a b'.", type: "Medium", input: "Run", output: "{'a', 'b'}", lang: "python", starter: "" },
+                { id: "6.21", title: "CSV Reader", desc: "Read col 2.", type: "Medium", input: "Run", output: "Data", lang: "python", starter: "" },
+                { id: "6.22", title: "Func Default", desc: "Greet 'Al'.", type: "Medium", input: "Al", output: "Hello Al", lang: "python", starter: "" },
+                { id: "6.23", title: "List Slicing", desc: "Middle of [1,2,3].", type: "Medium", input: "Run", output: "[2]", lang: "python", starter: "" },
+                { id: "6.24", title: "Reverse Sent", desc: "Rev 'A B'.", type: "Medium", input: "A B", output: "B A", lang: "python", starter: "" },
+                { id: "6.25", title: "File Writer", desc: "Write file.", type: "Medium", input: "Run", output: "Written", lang: "python", starter: "print('Written')" },
+                { id: "6.26", title: "Min Max Sum", desc: "Stats of [1,2,3].", type: "Medium", input: "Run", output: "1 3 6", lang: "python", starter: "" },
+                { id: "6.27", title: "Pass Masker", desc: "Mask 'abc'.", type: "Medium", input: "abc", output: "***", lang: "python", starter: "" },
+                { id: "6.28", title: "Try Except", desc: "Catch error.", type: "Medium", input: "a", output: "Error", lang: "python", starter: "" },
+                { id: "6.29", title: "Sort Dict", desc: "Sort grades.", type: "Medium", input: "Run", output: "Alice", lang: "python", starter: "" },
+                { id: "6.30", title: "Argv Basics", desc: "Print args.", type: "Medium", input: "Run", output: "test.py", lang: "python", starter: "" },
+
+                // HARD
+                { id: "6.31", title: "DNA Matcher", desc: "Count STR.", type: "Hard", input: "AGAT", output: "2", lang: "python", starter: "" },
+                { id: "6.32", title: "Web Scraper", desc: "Get status.", type: "Hard", input: "Run", output: "200", lang: "python", starter: "print(200)" },
+                { id: "6.33", title: "Regex Email", desc: "Validate email.", type: "Hard", input: "a@b.com", output: "Valid", lang: "python", starter: "" },
+                { id: "6.34", title: "JSON Parser", desc: "Parse JSON.", type: "Hard", input: "Run", output: "Val", lang: "python", starter: "" },
+                { id: "6.35", title: "Generator", desc: "Yield Fib.", type: "Hard", input: "Run", output: "1", lang: "python", starter: "" },
+                { id: "6.36", title: "Matrix Trans", desc: "Transpose [[1]].", type: "Hard", input: "Run", output: "[[1]]", lang: "python", starter: "" },
+                { id: "6.37", title: "CMD Calc", desc: "Add 1 2.", type: "Hard", input: "1 2", output: "3", lang: "python", starter: "" },
+                { id: "6.38", title: "Sentiment", desc: "Check 'Good'.", type: "Hard", input: "Good", output: "Pos", lang: "python", starter: "" },
+                { id: "6.39", title: "Thumbnails", desc: "Resize img.", type: "Hard", input: "Run", output: "Resized", lang: "python", starter: "print('Resized')" },
+                { id: "6.40", title: "Lambda", desc: "Filter len<5.", type: "Hard", input: "Run", output: "[]", lang: "python", starter: "" },
+                { id: "6.41", title: "Binary Rec", desc: "Find 2.", type: "Hard", input: "2", output: "Found", lang: "python", starter: "" },
+                { id: "6.42", title: "PDF Text", desc: "Read PDF.", type: "Hard", input: "Run", output: "Text", lang: "python", starter: "print('Text')" },
+                { id: "6.43", title: "Anagrams", desc: "Group them.", type: "Hard", input: "Run", output: "Group", lang: "python", starter: "" },
+                { id: "6.44", title: "Time Delta", desc: "Days to bday.", type: "Hard", input: "Run", output: "10", lang: "python", starter: "" },
+                { id: "6.45", title: "Decorator", desc: "Print Start/End.", type: "Hard", input: "Run", output: "Start\nEnd", lang: "python", starter: "" },
+
+                // PROJECTS
+                { id: "6.46", title: "Readability", desc: "Grade level.", type: "Project", input: "Text", output: "Grade 1", lang: "python", starter: "" },
+                { id: "6.47", title: "File Org", desc: "Move files.", type: "Project", input: "Run", output: "Moved", lang: "python", starter: "" },
+                { id: "6.48", title: "Weather", desc: "Get Temp.", type: "Project", input: "London", output: "20C", lang: "python", starter: "" },
+                { id: "6.49", title: "CSV to JSON", desc: "Convert.", type: "Project", input: "Run", output: "Done", lang: "python", starter: "" },
+                { id: "6.50", title: "Task Mgr", desc: "Add Task.", type: "Project", input: "Add", output: "Added", lang: "python", starter: "" }
+            ],
+
+            // --- CHAPTER 7: SQL (FULL) ---
+            7: [
+                // EASY
+                { id: "7.1", title: "Select All", desc: "Fetch all columns from movies.", type: "Easy", input: "Run", output: "SELECT * FROM movies;", lang: "sql", starter: "-- Write SQL" },
+                { id: "7.2", title: "Specific Cols", desc: "Select title, year.", type: "Easy", input: "Run", output: "SELECT title, year FROM movies;", lang: "sql", starter: "" },
+                { id: "7.3", title: "The Filter", desc: "Movies in 2024.", type: "Easy", input: "Run", output: "SELECT * FROM movies WHERE year = 2024;", lang: "sql", starter: "" },
+                { id: "7.4", title: "Exact Match", desc: "Title is 'Avatar'.", type: "Easy", input: "Run", output: "SELECT * FROM movies WHERE title = 'Avatar';", lang: "sql", starter: "" },
+                { id: "7.5", title: "Greater Than", desc: "Rating > 9.0.", type: "Easy", input: "Run", output: "SELECT * FROM movies WHERE rating > 9.0;", lang: "sql", starter: "" },
+                { id: "7.6", title: "Multi Condition", desc: "2023 and > 8.0.", type: "Easy", input: "Run", output: "SELECT * FROM movies WHERE year = 2023 AND rating > 8.0;", lang: "sql", starter: "" },
+                { id: "7.7", title: "Sorting", desc: "Order by title.", type: "Easy", input: "Run", output: "SELECT * FROM movies ORDER BY title;", lang: "sql", starter: "" },
+                { id: "7.8", title: "Rev Sorting", desc: "Top 10 rating.", type: "Easy", input: "Run", output: "SELECT * FROM movies ORDER BY rating DESC LIMIT 10;", lang: "sql", starter: "" },
+                { id: "7.9", title: "The Limit", desc: "First 5 actors.", type: "Easy", input: "Run", output: "SELECT * FROM actors LIMIT 5;", lang: "sql", starter: "" },
+                { id: "7.10", title: "Null Check", desc: "No poster.", type: "Easy", input: "Run", output: "SELECT * FROM movies WHERE poster_url IS NULL;", lang: "sql", starter: "" },
+                { id: "7.11", title: "Distinct", desc: "Unique genres.", type: "Easy", input: "Run", output: "SELECT DISTINCT genre FROM movies;", lang: "sql", starter: "" },
+                { id: "7.12", title: "Counting", desc: "Count songs.", type: "Easy", input: "Run", output: "SELECT COUNT(*) FROM songs;", lang: "sql", starter: "" },
+                { id: "7.13", title: "In Operator", desc: "Genre in Com/Dra/Hor.", type: "Easy", input: "Run", output: "SELECT * FROM movies WHERE genre IN ('Comedy', 'Drama', 'Horror');", lang: "sql", starter: "" },
+                { id: "7.14", title: "Between", desc: "2000 to 2010.", type: "Easy", input: "Run", output: "SELECT * FROM movies WHERE year BETWEEN 2000 AND 2010;", lang: "sql", starter: "" },
+                { id: "7.15", title: "Wildcard", desc: "Starts with 'J'.", type: "Easy", input: "Run", output: "SELECT * FROM actors WHERE name LIKE 'J%';", lang: "sql", starter: "" },
+
+                // MEDIUM
+                { id: "7.16", title: "Avg Rating", desc: "Average rating.", type: "Medium", input: "Run", output: "SELECT AVG(rating) FROM movies;", lang: "sql", starter: "" },
+                { id: "7.17", title: "Yearly Count", desc: "Count per year.", type: "Medium", input: "Run", output: "SELECT year, COUNT(*) FROM movies GROUP BY year;", lang: "sql", starter: "" },
+                { id: "7.18", title: "Total Revenue", desc: "Sum revenue.", type: "Medium", input: "Run", output: "SELECT SUM(revenue) FROM movies;", lang: "sql", starter: "" },
+                { id: "7.19", title: "Having", desc: "Years > 100 movies.", type: "Medium", input: "Run", output: "SELECT year FROM movies GROUP BY year HAVING COUNT(*) > 100;", lang: "sql", starter: "" },
+                { id: "7.20", title: "Inner Join", desc: "Movies and Directors.", type: "Medium", input: "Run", output: "JOIN directors ON movies.director_id = directors.id", lang: "sql", starter: "" },
+                { id: "7.21", title: "Count Stars", desc: "Tom Hanks count.", type: "Medium", input: "Run", output: "WHERE name = 'Tom Hanks'", lang: "sql", starter: "" },
+                { id: "7.22", title: "Alias", desc: "Title AS Name.", type: "Medium", input: "Run", output: "SELECT title AS \"Movie Name\"", lang: "sql", starter: "" },
+                { id: "7.23", title: "Case Sense", desc: "Lower title search.", type: "Medium", input: "Run", output: "LOWER(title)", lang: "sql", starter: "" },
+                { id: "7.24", title: "Subquery", desc: "Highest rating title.", type: "Medium", input: "Run", output: "(SELECT MAX(rating) FROM movies)", lang: "sql", starter: "" },
+                { id: "7.25", title: "Join 3", desc: "Actors in Inception.", type: "Medium", input: "Run", output: "JOIN stars JOIN actors", lang: "sql", starter: "" },
+                { id: "7.26", title: "Min Max", desc: "Oldest/Newest.", type: "Medium", input: "Run", output: "MIN(year), MAX(year)", lang: "sql", starter: "" },
+                { id: "7.27", title: "Length Func", desc: "Len > 20.", type: "Medium", input: "Run", output: "LENGTH(title) > 20", lang: "sql", starter: "" },
+                { id: "7.28", title: "Update", desc: "Set rating 9.5.", type: "Medium", input: "Run", output: "UPDATE movies SET rating = 9.5", lang: "sql", starter: "" },
+                { id: "7.29", title: "Delete", desc: "Remove movie.", type: "Medium", input: "Run", output: "DELETE FROM movies", lang: "sql", starter: "" },
+                { id: "7.30", title: "Insert", desc: "Add CS50 movie.", type: "Medium", input: "Run", output: "INSERT INTO movies", lang: "sql", starter: "" },
+
+                // HARD
+                { id: "7.31", title: "Common Actor", desc: "Nolan actors.", type: "Hard", input: "Run", output: "Christopher Nolan", lang: "sql", starter: "" },
+                { id: "7.32", title: "Self Join", desc: "Same manager.", type: "Hard", input: "Run", output: "JOIN employees e2", lang: "sql", starter: "" },
+                { id: "7.33", title: "Nested Agg", desc: "Best Director.", type: "Hard", input: "Run", output: "ORDER BY AVG(rating)", lang: "sql", starter: "" },
+                { id: "7.34", title: "Index", desc: "Create index.", type: "Hard", input: "Run", output: "CREATE INDEX", lang: "sql", starter: "" },
+                { id: "7.35", title: "Exclusion", desc: "No actors.", type: "Hard", input: "Run", output: "NOT IN", lang: "sql", starter: "" },
+                { id: "7.36", title: "Complex Sub", desc: "Above avg.", type: "Hard", input: "Run", output: "> (SELECT AVG(rating))", lang: "sql", starter: "" },
+                { id: "7.37", title: "Concat", desc: "Title (Year).", type: "Hard", input: "Run", output: "||", lang: "sql", starter: "" },
+                { id: "7.38", title: "Co-stars", desc: "With Kevin Bacon.", type: "Hard", input: "Run", output: "Kevin Bacon", lang: "sql", starter: "" },
+                { id: "7.39", title: "Transaction", desc: "Update 2 tables.", type: "Hard", input: "Run", output: "BEGIN TRANSACTION", lang: "sql", starter: "" },
+                { id: "7.40", title: "Pattern Mid", desc: "Contains 'son'.", type: "Hard", input: "Run", output: "%son%", lang: "sql", starter: "" },
+                { id: "7.41", title: "Count Dist", desc: "Unique directors.", type: "Hard", input: "Run", output: "COUNT(DISTINCT director_id)", lang: "sql", starter: "" },
+                { id: "7.42", title: "Group Multi", desc: "Director + Genre.", type: "Hard", input: "Run", output: "GROUP BY director_id, genre", lang: "sql", starter: "" },
+                { id: "7.43", title: "View", desc: "Create Top Rated.", type: "Hard", input: "Run", output: "CREATE VIEW", lang: "sql", starter: "" },
+                { id: "7.44", title: "World Prob", desc: "Top 10 Pop.", type: "Hard", input: "Run", output: "ORDER BY population", lang: "sql", starter: "" },
+                { id: "7.45", title: "Schema", desc: "Create Library.", type: "Hard", input: "Run", output: "CREATE TABLE", lang: "sql", starter: "" },
+
+                // PROJECTS
+                { id: "7.46", title: "Fiftyville", desc: "Find thief.", type: "Project", input: "Run", output: "SELECT", lang: "sql", starter: "" },
+                { id: "7.47", title: "Spotify", desc: "Top 10.", type: "Project", input: "Run", output: "SELECT", lang: "sql", starter: "" },
+                { id: "7.48", title: "E-commerce", desc: "Cart total.", type: "Project", input: "Run", output: "SUM", lang: "sql", starter: "" },
+                { id: "7.49", title: "Flight", desc: "Find path.", type: "Project", input: "Run", output: "JOIN", lang: "sql", starter: "" },
+                { id: "7.50", title: "IMDb Clone", desc: "Many-to-Many.", type: "Project", input: "Run", output: "FOREIGN KEY", lang: "sql", starter: "" }
+            ],
+            8: [
+                // EASY
+                { id: "8.1", title: "The Basic Page", desc: "Create an H1 and P tag.", type: "Easy", input: "Visual", output: "<h1>", lang: "html", starter: "<html>\n<body>\n  <h1>My Title</h1>\n  <p>Hello</p>\n</body>\n</html>" },
+                { id: "8.2", title: "Ordered List", desc: "Top 5 movies in <ol>.", type: "Easy", input: "Visual", output: "<ol>", lang: "html", starter: "<ol>\n  <li>Movie 1</li>\n</ol>" },
+                { id: "8.3", title: "Hyperlinks", desc: "Link to Google (target _blank).", type: "Easy", input: "Visual", output: "href=", lang: "html", starter: "<a href='https://google.com'>Google</a>" },
+                { id: "8.4", title: "Image Embed", desc: "Add an <img> with alt text.", type: "Easy", input: "Visual", output: "<img", lang: "html", starter: "" },
+                { id: "8.5", title: "CSS Colors", desc: "Blue text, Gray bg.", type: "Easy", input: "Visual", output: "color: blue", lang: "html", starter: "<style>\n  body { background: lightgray; }\n  p { color: blue; }\n</style>\n<p>Text</p>" },
+                { id: "8.6", title: "Font Styling", desc: "Sans-serif and Italic H1.", type: "Easy", input: "Visual", output: "font-family", lang: "html", starter: "" },
+                { id: "8.7", title: "Center Div", desc: "Center a div on screen.", type: "Easy", input: "Visual", output: "margin: auto", lang: "html", starter: "" },
+                { id: "8.8", title: "The Button", desc: "Click for Alert('Hello').", type: "Easy", input: "Visual", output: "onclick", lang: "html", starter: "<button onclick=\"alert('Hello')\">Click</button>" },
+                { id: "8.9", title: "Table Basics", desc: "3x2 Table.", type: "Easy", input: "Visual", output: "<table>", lang: "html", starter: "" },
+                { id: "8.10", title: "ID vs Class", desc: "Style class vs ID.", type: "Easy", input: "Visual", output: ".", lang: "html", starter: "" },
+                { id: "8.11", title: "Text Format", desc: "Bold, Italic, Underline.", type: "Easy", input: "Visual", output: "<strong>", lang: "html", starter: "" },
+                { id: "8.12", title: "Input Box", desc: "Placeholder 'Type Name'.", type: "Easy", input: "Visual", output: "placeholder", lang: "html", starter: "" },
+                { id: "8.13", title: "JS Console", desc: "Print 'Web Dev'.", type: "Easy", input: "Run", output: "Web Dev", lang: "javascript", starter: "console.log(\"Web Dev\");" },
+                { id: "8.14", title: "Hover Effect", desc: "Change color on :hover.", type: "Easy", input: "Visual", output: ":hover", lang: "html", starter: "" },
+                { id: "8.15", title: "Border Box", desc: "Border, Padding, Margin.", type: "Easy", input: "Visual", output: "padding:", lang: "html", starter: "" },
+
+                // MEDIUM
+                { id: "8.16", title: "Flexbox Row", desc: "Align 3 divs horizontally.", type: "Medium", input: "Visual", output: "display: flex", lang: "html", starter: "" },
+                { id: "8.17", title: "Nav Bar", desc: "Horizontal links.", type: "Medium", input: "Visual", output: "nav", lang: "html", starter: "" },
+                { id: "8.18", title: "Resp Image", desc: "Max-width 100%.", type: "Medium", input: "Visual", output: "max-width", lang: "html", starter: "" },
+                { id: "8.19", title: "Dark Mode", desc: "Toggle class on click.", type: "Medium", input: "Visual", output: "classList.toggle", lang: "html", starter: "" },
+                { id: "8.20", title: "Form Valid", desc: "Email required.", type: "Medium", input: "Visual", output: "required", lang: "html", starter: "" },
+                { id: "8.21", title: "Counter App", desc: "Plus/Minus buttons.", type: "Medium", input: "Visual", output: "innerText", lang: "html", starter: "" },
+                { id: "8.22", title: "Inner HTML", desc: "Change text after 3s.", type: "Medium", input: "Visual", output: "setTimeout", lang: "html", starter: "" },
+                { id: "8.23", title: "Grid Layout", desc: "2x2 Photo Grid.", type: "Medium", input: "Visual", output: "display: grid", lang: "html", starter: "" },
+                { id: "8.24", title: "Disappear", desc: "Hide element on click.", type: "Medium", input: "Visual", output: "display = 'none'", lang: "html", starter: "" },
+                { id: "8.25", title: "CSS Vars", desc: "Define --main-color.", type: "Medium", input: "Visual", output: "var(--", lang: "html", starter: "" },
+                { id: "8.26", title: "Rand Bg", desc: "Random hex on load.", type: "Medium", input: "Visual", output: "Math.random", lang: "html", starter: "" },
+                { id: "8.27", title: "Sticky Head", desc: "Position sticky.", type: "Medium", input: "Visual", output: "sticky", lang: "html", starter: "" },
+                { id: "8.28", title: "Array to List", desc: "Loop array -> <li>.", type: "Medium", input: "Visual", output: "forEach", lang: "html", starter: "" },
+                { id: "8.29", title: "Keydown", desc: "Show pressed key.", type: "Medium", input: "Visual", output: "addEventListener", lang: "html", starter: "" },
+                { id: "8.30", title: "Card UI", desc: "Shadow and Radius.", type: "Medium", input: "Visual", output: "box-shadow", lang: "html", starter: "" },
+
+                // HARD
+                { id: "8.31", title: "Fetch API", desc: "Get PokeAPI data.", type: "Hard", input: "Visual", output: "fetch", lang: "html", starter: "" },
+                { id: "8.32", title: "Local Storage", desc: "Save notes.", type: "Hard", input: "Visual", output: "localStorage", lang: "html", starter: "" },
+                { id: "8.33", title: "CSS Anim", desc: "Loading spinner.", type: "Hard", input: "Visual", output: "@keyframes", lang: "html", starter: "" },
+                { id: "8.34", title: "Digital Clock", desc: "Live HH:MM:SS.", type: "Hard", input: "Visual", output: "Date()", lang: "html", starter: "" },
+                { id: "8.35", title: "Filter List", desc: "Search bar filter.", type: "Hard", input: "Visual", output: "includes", lang: "html", starter: "" },
+                { id: "8.36", title: "Custom Modal", desc: "Popup overlay.", type: "Hard", input: "Visual", output: "z-index", lang: "html", starter: "" },
+                { id: "8.37", title: "Stopwatch", desc: "Start/Stop/Reset.", type: "Hard", input: "Visual", output: "setInterval", lang: "html", starter: "" },
+                { id: "8.38", title: "Smooth Scroll", desc: "Glide to section.", type: "Hard", input: "Visual", output: "scrollIntoView", lang: "html", starter: "" },
+                { id: "8.39", title: "Img Slider", desc: "Carousel Next/Prev.", type: "Hard", input: "Visual", output: "src", lang: "html", starter: "" },
+                { id: "8.40", title: "Observer", desc: "Anim on scroll.", type: "Hard", input: "Visual", output: "IntersectionObserver", lang: "html", starter: "" },
+                { id: "8.41", title: "Drag Drop", desc: "Drag API.", type: "Hard", input: "Visual", output: "draggable", lang: "html", starter: "" },
+                { id: "8.42", title: "Hamburger", desc: "Mobile menu slide.", type: "Hard", input: "Visual", output: "transform", lang: "html", starter: "" },
+                { id: "8.43", title: "Form JSON", desc: "Log form as JSON.", type: "Hard", input: "Visual", output: "JSON.stringify", lang: "html", starter: "" },
+                { id: "8.44", title: "Z-Index", desc: "Stacking cards.", type: "Hard", input: "Visual", output: "z-index", lang: "html", starter: "" },
+                { id: "8.45", title: "Media Query", desc: "3 col -> 1 col.", type: "Hard", input: "Visual", output: "@media", lang: "html", starter: "" },
+
+                // PROJECTS
+                { id: "8.46", title: "Portfolio", desc: "About/Project/Contact.", type: "Project", input: "Visual", output: "html", lang: "html", starter: "" },
+                { id: "8.47", title: "Todo Pro", desc: "Add/Strike/Delete.", type: "Project", input: "Visual", output: "html", lang: "html", starter: "" },
+                { id: "8.48", title: "Trivia Quiz", desc: "Score calc.", type: "Project", input: "Visual", output: "html", lang: "html", starter: "" },
+                { id: "8.49", title: "Calculator", desc: "On-screen calc.", type: "Project", input: "Visual", output: "html", lang: "html", starter: "" },
+                { id: "8.50", title: "Weather Dash", desc: "City search API.", type: "Project", input: "Visual", output: "html", lang: "html", starter: "" }
+            ],
+            9: [
+                // EASY
+                { id: "9.1", title: "Hello Flask", desc: "Basic App. Returns 'Hello, World!'.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "from flask import Flask\napp = Flask(__name__)\n\n@app.route('/')\ndef index():\n    return 'Hello, World!'\n\n# app.run() # Simulated" },
+                { id: "9.2", title: "Dynamic Routes", desc: "Route /greet/<name>.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.3", title: "Render Template", desc: "Use render_template('index.html').", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.4", title: "The Doubler", desc: "Route /double/<n> returns n*2.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.5", title: "Jinja Variables", desc: "Pass color='blue'.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.6", title: "Layout Inherit", desc: "Extends 'layout.html'.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.7", title: "Simple Nav", desc: "Use url_for().", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.8", title: "Debug Mode", desc: "app.run(debug=True).", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.9", title: "List Loop", desc: "Jinja {% for %} loop.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.10", title: "Conditions", desc: "Jinja {% if %} login.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.11", title: "Fav Number", desc: "Form redirect.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.12", title: "Static Files", desc: "Link static CSS.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.13", title: "Status Codes", desc: "404 Error handler.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.14", title: "Redirects", desc: "Redirect /old to /new.", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.15", title: "Query Strings", desc: "request.args.get().", type: "Easy", input: "Run", output: "Running", lang: "python", starter: "" },
+
+                // MEDIUM
+                { id: "9.16", title: "POST Request", desc: "Handle POST login.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.17", title: "Input Valid", desc: "Check empty fields.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.18", title: "Session Count", desc: "Track visits.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.19", title: "SQL Select", desc: "db.execute SELECT.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.20", title: "Search Bar", desc: "Query DB from form.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.21", title: "Flash Msg", desc: "flash('Success').", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.22", title: "Registrants", desc: "Insert into DB.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.23", title: "Pass Masking", desc: "Type='password'.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.24", title: "Multi-Route", desc: "Same template, diff logic.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.25", title: "Radio Buttons", desc: "Survey form.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.26", title: "JSON Response", desc: "Return jsonify().", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.27", title: "File Upload", desc: "Read uploaded .txt.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.28", title: "Hidden Input", desc: "Pass ID silently.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.29", title: "Datetime", desc: "Format date in Jinja.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.30", title: "URL Convert", desc: "Path converter.", type: "Medium", input: "Run", output: "Running", lang: "python", starter: "" },
+
+                // HARD
+                { id: "9.31", title: "Pass Hashing", desc: "generate_password_hash.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.32", title: "Login Req", desc: "Protect dashboard.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.33", title: "SQL Inject", desc: "Use placeholders (?).", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.34", title: "AJAX Search", desc: "Fetch() API.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.35", title: "Cart Logic", desc: "Session shopping cart.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.36", title: "Update SQL", desc: "Edit/Delete rows.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.37", title: "Env Vars", desc: "Use .env file.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.38", title: "Pagination", desc: "Next/Prev buttons.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.39", title: "Many-to-Many", desc: "Students & Courses.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.40", title: "CSRF Protect", desc: "Explain CSRF token.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.41", title: "API Integrate", desc: "Fetch external API.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.42", title: "User Profile", desc: "Dynamic /profile/<id>.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.43", title: "Pre-filling", desc: "Edit form loads data.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.44", title: "Image Gallery", desc: "Loop uploaded images.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.45", title: "Custom Dec", desc: "@login_required.", type: "Hard", input: "Run", output: "Running", lang: "python", starter: "" },
+
+                // PROJECTS
+                { id: "9.46", title: "C$50 Finance", desc: "Stock trading app.", type: "Project", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.47", title: "Personal Blog", desc: "Admin CMS.", type: "Project", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.48", title: "Trivia Battle", desc: "Quiz with scores.", type: "Project", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.49", title: "Inventory Mgr", desc: "Track stock levels.", type: "Project", input: "Run", output: "Running", lang: "python", starter: "" },
+                { id: "9.50", title: "Event Sched", desc: "RSVP system.", type: "Project", input: "Run", output: "Running", lang: "python", starter: "" }
+            ]
+        };
+
+        window.loginWithPassword = function() {
+            const email = document.getElementById('email-input').value;
+            const password = document.getElementById('password-input').value;
+            if(!email || !password) return;
+            signInWithEmailAndPassword(auth, email, password)
+                .then((cred) => checkUser(cred.user))
+                .catch((e) => { document.getElementById('login-error').innerText = e.message; document.getElementById('login-error').classList.remove('hidden'); });
+        };
+        window.logout = function() { signOut(auth).then(() => location.reload()); };
+        function checkUser(user) {
+            if (OWNER_EMAIL !== "your-email@example.com" && user.email !== OWNER_EMAIL) { signOut(auth); return; }
+            currentUser = user;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
+            initCharts(); listenToProgress();
+        }
+        onAuthStateChanged(auth, (user) => { if(user) checkUser(user); });
+
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('monaco-container'), { value: "", language: 'c', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: true }, fontSize: 14 });
+        });
+
+        function initCharts() { new Chart(document.getElementById('progressChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Done', 'Left'], datasets: [{ data: [0, 100], backgroundColor: ['#2563EB', '#374151'], borderWidth: 0 }] }, options: { responsive: true, cutout: '70%', plugins: { legend: { display: false } } } }); }
+        
+        // --- FIXED 1/0 BUG ---
+        function listenToProgress() { 
+            if(!currentUser) return; 
+            
+            // 1. Calculate Total Problems ONCE
+            let totalProblems = 0;
+            for (let chapter in chaptersData) {
+                totalProblems += chaptersData[chapter].length;
+            }
+            document.getElementById('total-count').innerText = totalProblems;
+
+            // 2. Listen for Solved Problems
+            onSnapshot(collection(db, "user_progress"), (snap) => { 
+                completedProblems.clear(); 
+                snap.forEach(doc => { 
+                    const d = doc.data(); 
+                    if(d.completed) { 
+                        completedProblems.set(d.problem_id, d.time_spent_seconds||0); 
+                    } 
+                }); 
+                
+                // 3. Update the Display
+                document.getElementById('completed-count').innerText = completedProblems.size;
+                
+                // 4. Update the Chart
+                if(completionChart) {
+                    completionChart.data.datasets[0].data = [completedProblems.size, totalProblems - completedProblems.size];
+                    completionChart.update();
+                }
+            }); 
+        }
+
+        window.loadChapter = function(i) {
+            isPlayground = false;
+            document.getElementById('info-card').classList.remove('hidden');
+            document.getElementById('lang-selector-container').classList.add('hidden');
+            document.getElementById('timer-box').classList.remove('hidden');
+            if(window.innerWidth < 1024) window.toggleSidebar();
+            
+            document.getElementById('problem-list-section').classList.remove('hidden');
+            const list = document.getElementById('problem-list-container'); list.innerHTML = "";
+            const probs = chaptersData[i]; if(!probs) return;
+            const groups = { "Easy":[], "Medium":[], "Hard":[], "Project":[] }; probs.forEach(p => { if(groups[p.type]) groups[p.type].push(p); });
+            for(const [t, g] of Object.entries(groups)) {
+                if(!g.length) continue;
+                list.innerHTML += `<h4 class="px-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-4 mb-2">${t}</h4>`;
+                g.forEach(p => {
+                    const done = completedProblems.has(p.id);
+                    const btn = document.createElement('button');
+                    btn.className = `w-full text-left px-3 py-2.5 rounded text-sm ${done?"text-green-400":"text-gray-400"} hover:bg-gray-700 hover:text-white transition flex justify-between items-center group mb-1`;
+                    btn.innerHTML = `<span class="group-hover:text-blue-300 truncate">${done?"✓ ":""}${p.id} ${p.title}</span>`;
+                    btn.onclick = () => window.displayProblem(p);
+                    list.appendChild(btn);
+                });
+            }
+            if(probs.length) window.displayProblem(probs[0]);
+        };
+
+        window.loadPlayground = function() {
+            isPlayground = true;
+            if(window.innerWidth < 1024) window.toggleSidebar();
+            
+            document.getElementById('problem-title').innerText = "Code Playground";
+            document.getElementById('problem-id-display').innerText = "Mode: Practice";
+            
+            document.getElementById('info-card').classList.add('hidden');
+            document.getElementById('timer-box').classList.add('hidden');
+            document.getElementById('success-box').classList.add('hidden');
+            document.getElementById('save-status').innerText = "LOCAL SESSION";
+            
+            document.getElementById('lang-selector-container').classList.remove('hidden');
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('submit-btn').classList.add("bg-gray-600", "cursor-not-allowed");
+            
+            window.switchPlaygroundLang();
+        };
+
+        window.switchPlaygroundLang = function() {
+            const lang = document.getElementById('playground-lang').value;
+            const ext = { "c":"main.c", "cpp":"main.cpp", "python":"main.py", "java":"Main.java", "javascript":"script.js", "html":"index.html" };
+            document.getElementById('editor-filename').innerText = ext[lang];
+            
+            let starter = "// Write your code here...";
+            if(lang === 'html') starter = "<html>\n<body>\n  <h1>Hello Playground</h1>\n</body>\n</html>";
+            if(lang === 'c') starter = "#include <stdio.h>\nint main() {\n    printf(\"Hello C\");\n    return 0;\n}";
+            if(lang === 'java') starter = "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello Java\");\n    }\n}";
+            
+            const term = document.getElementById('terminal-output');
+            const prev = document.getElementById('web-preview');
+            const title = document.getElementById('output-title');
+            
+            if(lang === 'html') {
+                term.classList.add('hidden'); prev.classList.remove('hidden'); title.innerText="Web Preview";
+                prev.srcdoc = starter;
+            } else {
+                term.classList.remove('hidden'); prev.classList.add('hidden'); title.innerText="Terminal";
+                term.innerText = "Ready to compile...";
+            }
+            
+            monaco.editor.setModelLanguage(editor.getModel(), lang === 'cpp' ? 'cpp' : lang);
+            editor.setValue(starter);
+        };
+
+        // --- FIXED RESET FUNCTION ---
+        window.resetCode = function() {
+            if (!editor) return;
+            if (confirm("Are you sure? This will wipe your current code and time.")) {
+                if (isPlayground) {
+                    window.switchPlaygroundLang();
+                } else if (currentProblem) {
+                    editor.setValue(currentProblem.starter || "");
+                    document.getElementById('save-status').innerText = "RESET";
+                    // Reset Timer
+                    secondsElapsed = 0;
+                    startTimer();
+                    document.getElementById('timer-display').innerText = "00:00";
+                }
+            }
+        };
+
+        window.displayProblem = async function(p) {
+            isPlayground = false;
+            currentProblem = p;
+            document.getElementById('problem-title').innerText = p.title; document.getElementById('problem-id-display').innerText = "ID: "+p.id;
+            document.getElementById('problem-desc').innerText = p.desc;
+            const colors = { "Easy":"bg-green-900 text-green-200", "Medium":"bg-yellow-900 text-yellow-200", "Hard":"bg-red-900 text-red-200", "Project":"bg-purple-900 text-purple-200" };
+            document.getElementById('diff-badge').className = `text-[10px] lg:text-xs px-2 py-1 rounded border border-transparent ${colors[p.type]}`;
+            
+            const lang = p.lang || "c";
+            document.getElementById('lang-badge').innerText = lang.toUpperCase();
+            document.getElementById('editor-filename').innerText = lang === "html" ? "index.html" : (lang === "sql" ? "query.sql" : (lang === "javascript" ? "script.js" : (lang === "python" ? "main.py" : "main.c")));
+            
+            const terminal = document.getElementById('terminal-output');
+            const preview = document.getElementById('web-preview');
+            const title = document.getElementById('output-title');
+            
+            if(lang === 'html') {
+                terminal.classList.add('hidden'); preview.classList.remove('hidden'); title.innerText = "Web Browser Preview";
+                preview.srcdoc = "<html><body style='color: #666; font-family: sans-serif; display:flex; justify-content:center; align-items:center; height:100%;'>Click Run to Render</body></html>";
+            } else {
+                terminal.classList.remove('hidden'); preview.classList.add('hidden'); title.innerText = "Terminal Output";
+                terminal.innerText = "Waiting for code run...";
+            }
+
+            document.getElementById('test-input').innerText = p.input.replace(/\n/g, "↵");
+            document.getElementById('test-output').innerText = p.output.replace(/\n/g, "↵");
+            document.getElementById('success-box').classList.add('hidden');
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('submit-btn').classList.add("bg-gray-600", "cursor-not-allowed");
+            secondsElapsed=0; startTimer();
+            
+            const ref = doc(db, "user_progress", "problem_" + p.id.replace('.', '_'));
+            const snap = await getDoc(ref);
+            if(editor) {
+                monaco.editor.setModelLanguage(editor.getModel(), lang);
+                editor.setValue(snap.exists()&&snap.data().code ? snap.data().code : (p.starter||""));
+                document.getElementById('save-status').innerText = snap.exists()?"RESTORED":"UNSAVED";
+            }
+            if(snap.exists() && snap.data().time_spent_seconds) secondsElapsed=snap.data().time_spent_seconds;
+            document.getElementById('status-badge').innerText = (snap.exists()&&snap.data().completed) ? "COMPLETED" : "PENDING";
+        };
+
+        function startTimer() { if(timerInterval) clearInterval(timerInterval); document.getElementById('timer-display').innerText = fmt(secondsElapsed); timerInterval = setInterval(() => { secondsElapsed++; document.getElementById('timer-display').innerText = fmt(secondsElapsed); }, 1000); }
+        function fmt(s) { return Math.floor(s/60).toString().padStart(2,'0')+":"+(s%60).toString().padStart(2,'0'); }
+
+        window.runCode = async function() {
+            const code = editor.getValue(); 
+            const term = document.getElementById('terminal-output');
+            
+            document.getElementById('success-box').classList.add('hidden');
+            
+            let lang = "c";
+            if(isPlayground) lang = document.getElementById('playground-lang').value;
+            else lang = currentProblem.lang || "c";
+
+            if(lang === 'html') {
+                const preview = document.getElementById('web-preview');
+                preview.srcdoc = code;
+                if(!isPlayground && code.toLowerCase().includes(currentProblem.output.toLowerCase())) { setTimeout(() => finishSuccess("Visual Match"), 500); }
+                return;
+            }
+
+            if(lang === "sql") {
+                term.innerText = "Simulating SQL...\n> "+code;
+                setTimeout(() => {
+                    if(!isPlayground && code.trim().includes(currentProblem.output.replace(";","").trim())) finishSuccess(code);
+                    else if(!isPlayground) term.innerText += `\n\n INCORRECT.\nExpected: "${currentProblem.output}"`;
+                }, 800);
+                return;
+            }
+
+            term.innerText = "Compiling...";
+            const input = (!isPlayground && currentProblem.input !== "None") ? currentProblem.input : "";
+            
+            let ver = "10.2.0";
+            if(lang==="python") ver="3.10.0";
+            if(lang==="javascript") ver="18.15.0";
+            if(lang==="java") ver="15.0.2";
+            if(lang==="cpp") ver="10.2.0";
+
+            try {
+                const res = await fetch("https://emkc.org/api/v2/piston/execute", {
+                    method: "POST", headers:{"Content-Type":"application/json"},
+                    body: JSON.stringify({ language: lang, version: ver, files: [{content:code}], stdin: input })
+                });
+                const r = await res.json();
+                if(r.run) {
+                    term.innerText = r.run.stdout + r.run.stderr;
+                    if(!isPlayground) {
+                        if(r.run.stdout.trim() === currentProblem.output.trim()) finishSuccess(r.run.stdout);
+                        else term.innerText += `\n\n INCORRECT.\nExpected: "${currentProblem.output.trim()}"`;
+                    }
+                }
+            } catch(e) { term.innerText="Error: "+e.message; }
+        };
+
+        function finishSuccess(o) {
+            clearInterval(timerInterval);
+            document.getElementById('success-box').classList.remove('hidden');
+            if(!currentProblem || currentProblem.lang !== 'html') document.getElementById('terminal-output').innerText += "\n\n✅ CORRECT ANSWER!";
+            const btn = document.getElementById('submit-btn');
+            btn.disabled=false; btn.classList.remove("bg-gray-600","cursor-not-allowed"); btn.classList.add("bg-green-600");
+            markAsDone();
+        }
+
+        window.clearTerminal = function() { document.getElementById('terminal-output').innerText="Waiting..."; };
+        window.markAsDone = async function() {
+            if(!currentProblem) return;
+            document.getElementById('save-status').innerText="SAVING...";
+            try {
+                await setDoc(doc(db, "user_progress", "problem_"+currentProblem.id.replace('.','_')), {
+                    problem_id: currentProblem.id, completed: true, time_spent_seconds: secondsElapsed, code: editor.getValue(), timestamp: new Date().toISOString()
+                }, {merge:true});
+                document.getElementById('save-status').innerText="SAVED"; document.getElementById('status-badge').innerText="COMPLETED";
+            } catch(e) { console.error(e); }
+        };
+    </script>
+</body>
+</html>
