@@ -5,7 +5,7 @@ Compiler: Piston API (Run C/Python/Java code).
 Content: 500+ Top Basic Interview Problems (Arrays, Algorithms, SQL, etc.).
 
 we deployed this website on Netlify . 
-the link is " https://tracker-v4-pavan.netlify.app/ " 
+the link is " https://problemtracker-v4-pavan.netlify.app/ " 
 
 when i did to make multiple files on html , css and javascipt and i came to a idea to to include everything into one file as index.html out of curiosity .
 
